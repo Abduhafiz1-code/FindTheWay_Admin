@@ -1,73 +1,99 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { useUiStore } from '../stores/ui'
-import { useAuthStore } from '../stores/auth'
-import { useAdminStore } from '../stores/admin'
-import { goToDesktop, goToBiznes, goToApp } from '../config'
-import AppIcon from '../components/AppIcon.vue'
-import LocaleSwitcher from '../components/LocaleSwitcher.vue'
-import ThemeSwitcher from '../components/ThemeSwitcher.vue'
-import BaseDropdown from '../components/BaseDropdown.vue'
+import { ref, computed, watch } from "vue";
+import { RouterLink, useRoute, useRouter } from "vue-router";
+import { useUiStore } from "../stores/ui";
+import { useAuthStore } from "../stores/auth";
+import { useAdminStore } from "../stores/admin";
+import { goToDesktop, goToBiznes, goToApp } from "../config";
+import AppIcon from "../components/AppIcon.vue";
+import LocaleSwitcher from "../components/LocaleSwitcher.vue";
+import ThemeSwitcher from "../components/ThemeSwitcher.vue";
+import BaseDropdown from "../components/BaseDropdown.vue";
 
-const ui = useUiStore()
-const auth = useAuthStore()
-const admin = useAdminStore()
-const route = useRoute()
-const router = useRouter()
+const ui = useUiStore();
+const auth = useAuthStore();
+const admin = useAdminStore();
+const route = useRoute();
+const router = useRouter();
 
-const drawer = ref(false)
+const drawer = ref(false);
 
 const NAV = [
-  { name: 'dashboard', to: '/', labelKey: 'nav.dashboard', icon: 'chart' },
-  { name: 'centers', to: '/markazlar', labelKey: 'nav.centers', icon: 'building' },
-  { name: 'users', to: '/foydalanuvchilar', labelKey: 'nav.users', icon: 'users' },
-  { name: 'applications', to: '/arizalar', labelKey: 'nav.applications', icon: 'inbox' },
-  { name: 'settings', to: '/sozlamalar', labelKey: 'nav.settings', icon: 'settings' },
-]
+  { name: "dashboard", to: "/", labelKey: "nav.dashboard", icon: "chart" },
+  {
+    name: "centers",
+    to: "/markazlar",
+    labelKey: "nav.centers",
+    icon: "building",
+  },
+  {
+    name: "users",
+    to: "/foydalanuvchilar",
+    labelKey: "nav.users",
+    icon: "users",
+  },
+  {
+    name: "applications",
+    to: "/arizalar",
+    labelKey: "nav.applications",
+    icon: "inbox",
+  },
+  {
+    name: "subscriptions",
+    to: "/tolovlar",
+    labelKey: "nav.subscriptions",
+    icon: "wallet",
+  },
+  {
+    name: "settings",
+    to: "/sozlamalar",
+    labelKey: "nav.settings",
+    icon: "settings",
+  },
+];
 
 const LINKS = [
-  { key: 'desktop', labelKey: 'nav.desktop', icon: 'globe', go: goToDesktop },
-  { key: 'biznes', labelKey: 'nav.biznes', icon: 'building', go: goToBiznes },
-  { key: 'app', labelKey: 'nav.app', icon: 'cap', go: goToApp },
-]
+  { key: "desktop", labelKey: "nav.desktop", icon: "globe", go: goToDesktop },
+  { key: "biznes", labelKey: "nav.biznes", icon: "building", go: goToBiznes },
+  { key: "app", labelKey: "nav.app", icon: "cap", go: goToApp },
+];
 
 // Yon menyudagi kichik raqamlar
 const badges = computed(() => ({
   centers: admin.stats.pending || 0,
   applications: admin.stats.byStatus?.new || 0,
-}))
+}));
 
 function isActive(item) {
-  if (item.to === '/') return route.path === '/'
-  if (item.name === 'centers') return route.path.startsWith('/markaz')
-  return route.path.startsWith(item.to)
+  if (item.to === "/") return route.path === "/";
+  if (item.name === "centers") return route.path.startsWith("/markaz");
+  return route.path.startsWith(item.to);
 }
 
 watch(
   () => route.fullPath,
   () => {
-    drawer.value = false
+    drawer.value = false;
   },
-)
+);
 
-const refreshing = ref(false)
+const refreshing = ref(false);
 async function refresh() {
-  refreshing.value = true
+  refreshing.value = true;
   try {
-    await admin.loadAll(true)
+    await admin.loadAll(true);
   } finally {
-    refreshing.value = false
+    refreshing.value = false;
   }
 }
 
 async function handleLogout() {
   try {
-    await auth.signOut()
+    await auth.signOut();
   } catch {
     /* jim o'tamiz */
   }
-  router.push({ name: 'login' })
+  router.push({ name: "login" });
 }
 </script>
 
@@ -82,16 +108,20 @@ async function handleLogout() {
           <AppIcon name="compass" :size="19" />
         </span>
         <div class="leading-tight">
-          <p class="text-sm font-extrabold tracking-tight">{{ ui.t('brand.name') }}</p>
-          <p class="text-[10px] font-bold uppercase tracking-wider text-primary">
-            {{ ui.t('brand.panel') }}
+          <p class="text-sm font-extrabold tracking-tight">
+            {{ ui.t("brand.name") }}
+          </p>
+          <p
+            class="text-[10px] font-bold uppercase tracking-wider text-primary">
+            {{ ui.t("brand.panel") }}
           </p>
         </div>
       </div>
 
       <nav class="flex-1 overflow-y-auto px-3 py-3">
-        <p class="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider opacity-40">
-          {{ ui.t('nav.sections') }}
+        <p
+          class="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider opacity-40">
+          {{ ui.t("nav.sections") }}
         </p>
         <RouterLink
           v-for="item in NAV"
@@ -115,8 +145,9 @@ async function handleLogout() {
           </span>
         </RouterLink>
 
-        <p class="mt-5 px-3 pb-2 text-[10px] font-bold uppercase tracking-wider opacity-40">
-          {{ ui.t('nav.links') }}
+        <p
+          class="mt-5 px-3 pb-2 text-[10px] font-bold uppercase tracking-wider opacity-40">
+          {{ ui.t("nav.links") }}
         </p>
         <button
           v-for="link in LINKS"
@@ -146,7 +177,7 @@ async function handleLogout() {
           class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-error transition-colors hover:bg-error/10"
           @click="handleLogout">
           <AppIcon name="logout" :size="17" />
-          {{ ui.t('nav.logout') }}
+          {{ ui.t("nav.logout") }}
         </button>
       </div>
     </aside>
@@ -178,9 +209,12 @@ async function handleLogout() {
                 <AppIcon name="compass" :size="19" />
               </span>
               <div class="leading-tight">
-                <p class="text-sm font-extrabold tracking-tight">{{ ui.t('brand.name') }}</p>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-primary">
-                  {{ ui.t('brand.panel') }}
+                <p class="text-sm font-extrabold tracking-tight">
+                  {{ ui.t("brand.name") }}
+                </p>
+                <p
+                  class="text-[10px] font-bold uppercase tracking-wider text-primary">
+                  {{ ui.t("brand.panel") }}
                 </p>
               </div>
             </div>
@@ -198,7 +232,11 @@ async function handleLogout() {
               :key="item.name"
               :to="item.to"
               class="mb-1 flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-colors"
-              :class="isActive(item) ? 'bg-primary/12 text-primary' : 'hover:bg-base-content/5'">
+              :class="
+                isActive(item)
+                  ? 'bg-primary/12 text-primary'
+                  : 'hover:bg-base-content/5'
+              ">
               <AppIcon :name="item.icon" :size="18" />
               <span class="flex-1">{{ ui.t(item.labelKey) }}</span>
               <span
@@ -224,7 +262,7 @@ async function handleLogout() {
                 class="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-error transition-colors hover:bg-error/10"
                 @click="handleLogout">
                 <AppIcon name="logout" :size="17" />
-                {{ ui.t('nav.logout') }}
+                {{ ui.t("nav.logout") }}
               </button>
             </div>
           </nav>
@@ -244,8 +282,13 @@ async function handleLogout() {
             <AppIcon name="menu" :size="20" />
           </button>
 
-          <p class="truncate text-sm font-extrabold tracking-tight sm:text-base">
-            {{ ui.t(`nav.${route.name === 'center' ? 'centers' : route.name || 'dashboard'}`) }}
+          <p
+            class="truncate text-sm font-extrabold tracking-tight sm:text-base">
+            {{
+              ui.t(
+                `nav.${route.name === "center" ? "centers" : route.name || "dashboard"}`,
+              )
+            }}
           </p>
 
           <div class="ml-auto flex items-center gap-1">
@@ -257,7 +300,9 @@ async function handleLogout() {
               <AppIcon
                 name="refresh"
                 :size="18"
-                :class="refreshing ? 'animate-spin opacity-70' : 'opacity-70'" />
+                :class="
+                  refreshing ? 'animate-spin opacity-70' : 'opacity-70'
+                " />
             </button>
             <LocaleSwitcher />
             <ThemeSwitcher />
@@ -271,7 +316,8 @@ async function handleLogout() {
                 <AppIcon name="chevronDown" :size="14" class="opacity-50" />
               </template>
 
-              <div class="mb-1 border-b border-base-content/10 px-3 pb-2.5 pt-1.5">
+              <div
+                class="mb-1 border-b border-base-content/10 px-3 pb-2.5 pt-1.5">
                 <p class="truncate text-sm font-bold">{{ auth.displayName }}</p>
                 <p class="truncate text-xs opacity-55">{{ auth.email }}</p>
               </div>
@@ -279,14 +325,14 @@ async function handleLogout() {
                 to="/sozlamalar"
                 class="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-base-200">
                 <AppIcon name="settings" :size="16" class="opacity-60" />
-                {{ ui.t('nav.settings') }}
+                {{ ui.t("nav.settings") }}
               </RouterLink>
               <button
                 type="button"
                 class="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-error transition-colors hover:bg-error/10"
                 @click="handleLogout">
                 <AppIcon name="logout" :size="16" />
-                {{ ui.t('nav.logout') }}
+                {{ ui.t("nav.logout") }}
               </button>
             </BaseDropdown>
           </div>
@@ -295,14 +341,19 @@ async function handleLogout() {
 
       <!-- Ma'lumot yuklashda xatolik bo'lsa — ogohlantirish -->
       <div v-if="admin.lastError" class="px-4 pt-4 sm:px-6">
-        <div class="flex items-start gap-3 rounded-2xl border border-error/25 bg-error/10 p-4">
+        <div
+          class="flex items-start gap-3 rounded-2xl border border-error/25 bg-error/10 p-4">
           <AppIcon name="alert" :size="18" class="mt-0.5 shrink-0 text-error" />
           <div class="min-w-0 flex-1">
-            <p class="text-sm font-bold text-error">{{ ui.t('common.error') }}</p>
-            <p class="mt-0.5 break-words text-xs opacity-70">{{ admin.lastError }}</p>
+            <p class="text-sm font-bold text-error">
+              {{ ui.t("common.error") }}
+            </p>
+            <p class="mt-0.5 break-words text-xs opacity-70">
+              {{ admin.lastError }}
+            </p>
           </div>
           <button class="btn btn-ghost btn-xs rounded-lg" @click="refresh">
-            {{ ui.t('common.retry') }}
+            {{ ui.t("common.retry") }}
           </button>
         </div>
       </div>

@@ -74,6 +74,18 @@ create policy applications_admin_all on public.applications
   using (public.is_admin())
   with check (public.is_admin());
 
+drop policy if exists subscriptions_admin_all on public.subscriptions;
+create policy subscriptions_admin_all on public.subscriptions
+  for all
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "subscription_receipts_admin_read" on storage.objects;
+create policy "subscription_receipts_admin_read" on storage.objects
+  for select to authenticated using (
+    bucket_id = 'subscription-receipts' and public.is_admin()
+  );
+
 
 -- ---------------------------------------------------------------------
 -- 4) Markaz o'chirilganda unga tegishli kurs va arizalar ham ketsin
