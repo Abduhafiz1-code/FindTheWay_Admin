@@ -4,6 +4,7 @@ import { RouterLink, useRoute, useRouter } from "vue-router";
 import { useUiStore } from "../stores/ui";
 import { useAuthStore } from "../stores/auth";
 import { useAdminStore } from "../stores/admin";
+import { useSupportStore } from "../stores/support";
 import { goToDesktop, goToBiznes, goToApp } from "../config";
 import AppIcon from "../components/AppIcon.vue";
 import LocaleSwitcher from "../components/LocaleSwitcher.vue";
@@ -13,6 +14,7 @@ import BaseDropdown from "../components/BaseDropdown.vue";
 const ui = useUiStore();
 const auth = useAuthStore();
 const admin = useAdminStore();
+const support = useSupportStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -43,6 +45,12 @@ const NAV = [
     to: "/tolovlar",
     labelKey: "nav.subscriptions",
     icon: "wallet",
+  },
+  {
+    name: "support",
+    to: "/yordam",
+    labelKey: "nav.support",
+    icon: "mail",
   },
   {
     name: "settings",
@@ -93,6 +101,7 @@ async function handleLogout() {
   } catch {
     /* jim o'tamiz */
   }
+  support.reset();
   router.push({ name: "login" });
 }
 </script>

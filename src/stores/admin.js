@@ -130,9 +130,9 @@ export const useAdminStore = defineStore("admin", () => {
         supabase
           .from("subscriptions")
           .select(
-            "id, center_id, status, trial_ends_at, paid_until, receipt_url, created_at, centers ( id, name )",
+            "id, center_id, status, plan, billing_cycle, is_extra_center, trial_ends_at, paid_until, receipt_url, created_at, centers ( id, name )",
           )
-          .eq("status", "pending")
+          .in("status", ["pending", "trial"])
           .order("created_at", { ascending: false }),
       ]);
 
@@ -143,7 +143,10 @@ export const useAdminStore = defineStore("admin", () => {
       profiles.value = p.data ?? [];
       applications.value = a.data ?? [];
       courses.value = k.data ?? [];
-      subscriptions.value = s.data ?? [];
+      subscriptions.value =
+        s.data?.filter(
+          (x) => x.status === "pending" || (x.status === "trial" && x.receipt_url),
+        ) ?? [];
       loaded.value = true;
     } catch (e) {
       lastError.value = e?.message ?? "Xatolik";
@@ -349,10 +352,22 @@ export const useAdminStore = defineStore("admin", () => {
   }
 
   async function approveSubscription(subscriptionId) {
-    const paidUntil = new Date(Date.now() + 30 * 86400000).toISOString();
+    const item = subscriptions.value.find((x) => x.id === subscriptionId);
+    // Davomiy to'lovlar bir-birini uzaytiradi (paid_until kelajakda bo'lsa)
+    const start =
+      item?.paid_until && new Date(item.paid_until) > new Date()
+        ? new Date(item.paid_until)
+        : new Date();
+    const months = item?.billing_cycle === "yearly" ? 12 : 1;
+    const paidUntil = new Date(start);
+    paidUntil.setMonth(paidUntil.getMonth() + months);
+
     const { error } = await supabase
       .from("subscriptions")
-      .update({ status: "active", paid_until: paidUntil })
+      .update({
+        status: "active",
+        paid_until: paidUntil.toISOString(),
+      })
       .eq("id", subscriptionId);
     if (error) throw error;
     subscriptions.value = subscriptions.value.filter(
@@ -361,9 +376,18 @@ export const useAdminStore = defineStore("admin", () => {
   }
 
   async function rejectSubscription(subscriptionId) {
+    const item = subscriptions.value.find((x) => x.id === subscriptionId);
+    // Trial hali tugamagan bo'lsa — markaz yashirinmaydi, chek bekor qilinadi
+    const trialAlive =
+      item?.status === "trial" &&
+      item.trial_ends_at &&
+      new Date(item.trial_ends_at) > new Date();
     const { error } = await supabase
       .from("subscriptions")
-      .update({ status: "expired", receipt_url: null })
+      .update({
+        status: trialAlive ? "trial" : "expired",
+        receipt_url: null,
+      })
       .eq("id", subscriptionId);
     if (error) throw error;
     subscriptions.value = subscriptions.value.filter(

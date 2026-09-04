@@ -53,6 +53,16 @@ const routes = [
     },
   },
   {
+    path: "/yordam",
+    name: "support",
+    component: () => import("../views/SupportView.vue"),
+    meta: {
+      layout: "main",
+      requiresAuth: true,
+      title: "Yordam · FindTheWay Admin",
+    },
+  },
+  {
     path: "/tolovlar",
     name: "subscriptions",
     component: () => import("../views/SubscriptionsView.vue"),
