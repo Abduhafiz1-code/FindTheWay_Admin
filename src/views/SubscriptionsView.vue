@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from "vue";
 import { useAdminStore } from "../stores/admin";
 import { useStudentPlansStore } from "../stores/studentPlans";
 import { useModuleSalesStore } from "../stores/moduleSales";
+import { usePanelSalesStore } from "../stores/panelSales";
 import AppIcon from "../components/AppIcon.vue";
 import PageHeader from "../components/ui/PageHeader.vue";
 import EmptyState from "../components/ui/EmptyState.vue";
@@ -10,6 +11,7 @@ import EmptyState from "../components/ui/EmptyState.vue";
 const admin = useAdminStore();
 const plans = useStudentPlansStore();
 const sales = useModuleSalesStore();
+const panelSales = usePanelSalesStore();
 
 const tab = ref("centers");
 const receiptUrls = ref({});
@@ -52,6 +54,7 @@ async function loadReceipts() {
     loadReceiptsFor(admin.subscriptions),
     loadReceiptsFor(plans.items),
     loadReceiptsFor(sales.items),
+    loadReceiptsFor(panelSales.items),
   ]);
 }
 
@@ -81,6 +84,19 @@ async function decideStudent(item, action) {
   }
 }
 
+async function decidePanel(item, action) {
+  busy.value = item.id;
+  errorMessage.value = "";
+  try {
+    if (action === "approve") await panelSales.approve(item.id);
+    else await panelSales.reject(item.id);
+  } catch (error) {
+    errorMessage.value = error?.message || String(error);
+  } finally {
+    busy.value = null;
+  }
+}
+
 async function decideModule(item, action) {
   busy.value = item.id;
   errorMessage.value = "";
@@ -100,7 +116,7 @@ watch(tab, async () => {
 });
 
 onMounted(async () => {
-  await Promise.all([plans.loadPending(), sales.loadPending()]);
+  await Promise.all([plans.loadPending(), sales.loadPending(), panelSales.loadPending()]);
   await loadReceipts();
 });
 </script>
@@ -139,6 +155,15 @@ onMounted(async () => {
         <AppIcon name="ticket" :size="14" />
         Modullar
         <span class="ml-1 opacity-60">{{ sales.items.length }}</span>
+      </button>
+      <button
+        type="button"
+        class="btn btn-sm rounded-xl"
+        :class="tab === 'panels' ? 'btn-primary' : 'btn-ghost'"
+        @click="tab = 'panels'">
+        <AppIcon name="briefcase" :size="14" />
+        Panellar
+        <span class="ml-1 opacity-60">{{ panelSales.items.length }}</span>
       </button>
     </div>
 
@@ -269,6 +294,71 @@ onMounted(async () => {
               class="btn btn-error btn-outline flex-1"
               :disabled="busy === item.id"
               @click="decideStudent(item, 'reject')">
+              Rad etish
+            </button>
+          </div>
+        </article>
+      </div>
+    </template>
+
+    <!-- ============ Tayyor panellar ============ -->
+    <template v-else-if="tab === 'panels'">
+      <EmptyState
+        v-if="!panelSales.items.length"
+        icon="briefcase"
+        title="Panel xaridlari yo'q"
+        text="Markaz panel sotib olish uchun chek yuborsa, shu yerda ko'rinadi." />
+      <div v-else class="grid gap-4 xl:grid-cols-2">
+        <article
+          v-for="item in panelSales.items"
+          :key="item.id"
+          class="ftw-card overflow-hidden">
+          <div class="flex items-start justify-between gap-4 p-5">
+            <div class="min-w-0">
+              <h2 class="truncate font-bold">
+                {{ item.panel_products?.name || "Panel" }}
+                <span class="ml-1 text-xs font-semibold opacity-50">—
+                  {{ item.centers?.name || "Markaz" }}
+                </span>
+              </h2>
+              <p class="mt-1 text-xs font-semibold text-primary">
+                {{ (item.panel_products?.price_monthly ?? 0).toLocaleString("uz-UZ") }} so'm / oy
+              </p>
+              <p class="mt-0.5 text-xs opacity-55">
+                {{ new Date(item.created_at).toLocaleString("uz-UZ") }}
+              </p>
+            </div>
+            <span class="badge badge-warning shrink-0">pending</span>
+          </div>
+          <a
+            v-if="receiptUrls[item.id]"
+            :href="receiptUrls[item.id]"
+            target="_blank"
+            rel="noopener"
+            class="block border-y border-base-content/10 bg-base-200/40 p-4">
+            <img
+              :src="receiptUrls[item.id]"
+              alt="To'lov cheki"
+              class="mx-auto max-h-72 rounded-lg object-contain" />
+          </a>
+          <div
+            v-else
+            class="flex items-center justify-center border-y border-base-content/10 p-8 text-sm opacity-55">
+            <AppIcon name="image" :size="18" class="mr-2" /> Chek topilmadi
+          </div>
+          <div class="flex gap-2 p-4">
+            <button
+              type="button"
+              class="btn btn-success flex-1"
+              :disabled="busy === item.id"
+              @click="decidePanel(item, 'approve')">
+              Faollashtirish
+            </button>
+            <button
+              type="button"
+              class="btn btn-error btn-outline flex-1"
+              :disabled="busy === item.id"
+              @click="decidePanel(item, 'reject')">
               Rad etish
             </button>
           </div>
