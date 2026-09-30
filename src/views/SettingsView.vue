@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUiStore, AVAILABLE_THEMES } from '../stores/ui'
 import { useAuthStore } from '../stores/auth'
+import { supabase } from '../supabase'
 import { goToDesktop, goToBiznes, goToApp } from '../config'
 import AppIcon from '../components/AppIcon.vue'
 import PageHeader from '../components/ui/PageHeader.vue'
@@ -22,9 +23,98 @@ const savingPassword = ref(false)
 const passwordMessage = ref('')
 const passwordError = ref('')
 
+// ============ RASMIY TO'LOV KARTALARI (platform_accounts) ============
+// Biznesdagi "To'lov" sahifasi va do'konlar aynan shu yozuvlarni
+// ko'rsatadi — kartani faqat shu yerdan boshqarasiz.
+const accounts = ref([])
+const accLoading = ref(false)
+const accMessage = ref('')
+const accError = ref('')
+const accSaving = ref('')
+const emptyAccount = () => ({
+  id: null,
+  label: 'Asosiy karta',
+  holder: '',
+  number: '',
+  bank: '',
+  kind: 'card',
+  is_primary: false,
+  is_active: true,
+  sort: 0,
+})
+const newAccount = ref(emptyAccount())
+
+async function loadAccounts() {
+  accLoading.value = true
+  const { data, error } = await supabase
+    .from('platform_accounts')
+    .select('*')
+    .order('is_primary', { ascending: false })
+    .order('sort', { ascending: true })
+  accLoading.value = false
+  if (error) {
+    accError.value = error.message
+    return
+  }
+  accounts.value = data ?? []
+}
+
+async function saveAccountRow(row) {
+  if (!row.number.trim() || !row.holder.trim()) {
+    accError.value = 'Karta raqami va egasi majburiy'
+    return
+  }
+  accError.value = ''
+  accMessage.value = ''
+  accSaving.value = row.id ?? 'new'
+  try {
+    const payload = {
+      label: row.label || 'Karta',
+      holder: row.holder.trim(),
+      number: row.number.trim(),
+      bank: row.bank?.trim() || null,
+      kind: row.kind,
+      is_primary: !!row.is_primary,
+      is_active: !!row.is_active,
+      sort: row.sort ?? 0,
+    }
+    if (row.id) {
+      const { error } = await supabase
+        .from('platform_accounts')
+        .update(payload)
+        .eq('id', row.id)
+      if (error) throw error
+    } else {
+      const { error } = await supabase
+        .from('platform_accounts')
+        .insert(payload)
+      if (error) throw error
+      newAccount.value = emptyAccount()
+    }
+    accMessage.value = 'Saqlandi — endi foydalanuvchilar shu kartani ko\'radi'
+    await loadAccounts()
+  } catch (e) {
+    accError.value = e?.message ?? String(e)
+  } finally {
+    accSaving.value = ''
+  }
+}
+
+async function deleteAccountRow(row) {
+  if (row.id) {
+    await supabase.from('platform_accounts').delete().eq('id', row.id)
+    await loadAccounts()
+  }
+}
+
+function formatNumber(value) {
+  return String(value ?? '').replace(/[^0-9]/g, '').replace(/(.{4})/g, '$1 ').trim()
+}
+
 onMounted(() => {
   fullName.value = auth.displayName
   phone.value = auth.phone
+  loadAccounts()
 })
 
 async function saveProfile() {
@@ -251,6 +341,128 @@ const LINKS = [
         {{ passwordMessage }}
       </p>
       <p v-if="passwordError" class="mt-3 text-sm font-semibold text-error">{{ passwordError }}</p>
+    </section>
+
+    <!-- ============ Rasmiy to'lov kartalari ============ -->
+    <section
+      class="ftw-slide-in mt-4 rounded-2xl border border-base-content/10 bg-base-100 p-5 sm:p-6"
+      style="animation-delay: 170ms">
+      <h2 class="flex items-center gap-2 text-base font-bold">
+        <span class="flex size-8 items-center justify-center rounded-xl bg-success/12 text-success">
+          <AppIcon name="wallet" :size="16" />
+        </span>
+        Rasmiy to'lov kartalari
+      </h2>
+      <p class="mt-1 text-sm leading-relaxed opacity-55">
+        Bu kartalar Biznes panelidagi "To'lov" sahifasida va do'konlarda
+        (Modullar, Panellar) aynan shu ko'rinishda ko'rsatiladi. Foydalanuvchi
+        ishonchi uchun raqamlar to'g'ri va yangi bo'lishi shart.
+      </p>
+
+      <p v-if="accError" class="mt-3 text-sm font-semibold text-error">{{ accError }}</p>
+      <p v-if="accMessage" class="mt-3 flex items-center gap-1.5 text-sm font-semibold text-success">
+        <AppIcon name="checkCircle" :size="16" />
+        {{ accMessage }}
+      </p>
+
+      <div v-if="accLoading" class="mt-4 text-sm opacity-50">Yuklanmoqda...</div>
+
+      <div v-else class="mt-4 space-y-3">
+        <div
+          v-for="row in accounts"
+          :key="row.id"
+          class="rounded-xl border border-base-content/12 bg-base-200/50 p-4">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Nomi</span>
+              <input v-model="row.label" type="text" class="input input-bordered input-sm w-full rounded-lg" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Bank</span>
+              <input v-model="row.bank" type="text" class="input input-bordered input-sm w-full rounded-lg" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Karta egasi (F.I.Sh.)</span>
+              <input v-model="row.holder" type="text" class="input input-bordered input-sm w-full rounded-lg uppercase" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Karta raqami</span>
+              <input
+                v-model="row.number"
+                type="text"
+                inputmode="numeric"
+                class="input input-bordered input-sm w-full rounded-lg tracking-wider"
+                @input="row.number = formatNumber(row.number)" />
+            </label>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-3">
+            <label class="flex cursor-pointer items-center gap-2 text-xs font-bold">
+              <input v-model="row.is_primary" type="checkbox" class="checkbox checkbox-xs checkbox-success" />
+              Asosiy karta
+            </label>
+            <label class="flex cursor-pointer items-center gap-2 text-xs font-bold">
+              <input v-model="row.is_active" type="checkbox" class="checkbox checkbox-xs" />
+              Faol (ko'rinadi)
+            </label>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm ml-auto rounded-lg"
+              :disabled="accSaving === row.id"
+              @click="saveAccountRow(row)">
+              {{ accSaving === row.id ? 'Saqlanmoqda...' : 'Saqlash' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm rounded-lg text-error"
+              @click="deleteAccountRow(row)">
+              <AppIcon name="trash" :size="15" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Yangi karta qo'shish -->
+        <div class="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4">
+          <p class="text-sm font-bold">Yangi karta qo'shish</p>
+          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Nomi</span>
+              <input v-model="newAccount.label" type="text" class="input input-bordered input-sm w-full rounded-lg" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Bank</span>
+              <input v-model="newAccount.bank" type="text" class="input input-bordered input-sm w-full rounded-lg" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Karta egasi (F.I.Sh.)</span>
+              <input v-model="newAccount.holder" type="text" class="input input-bordered input-sm w-full rounded-lg uppercase" />
+            </label>
+            <label class="block">
+              <span class="mb-1 block text-xs font-bold opacity-55">Karta raqami</span>
+              <input
+                v-model="newAccount.number"
+                type="text"
+                inputmode="numeric"
+                placeholder="8600 0000 0000 0000"
+                class="input input-bordered input-sm w-full rounded-lg tracking-wider"
+                @input="newAccount.number = formatNumber(newAccount.number)" />
+            </label>
+          </div>
+          <div class="mt-3 flex items-center gap-3">
+            <label class="flex cursor-pointer items-center gap-2 text-xs font-bold">
+              <input v-model="newAccount.is_primary" type="checkbox" class="checkbox checkbox-xs checkbox-success" />
+              Asosiy karta
+            </label>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm ml-auto rounded-lg"
+              :disabled="accSaving === 'new'"
+              @click="saveAccountRow(newAccount)">
+              <AppIcon name="plus" :size="14" />
+              Qo'shish
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- ============ Loyihalar ============ -->
