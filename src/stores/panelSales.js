@@ -28,29 +28,29 @@ export const usePanelSalesStore = defineStore("panelSales", () => {
     return items.value;
   }
 
-  async function approve(saleId) {
-    const item = items.value.find((x) => x.id === saleId);
-    // Uzaytirish bo'lsa — oldingi muddatdan davom etadi
-    const start =
-      item?.paid_until && new Date(item.paid_until) > new Date()
-        ? new Date(item.paid_until)
-        : new Date();
-    const paidUntil = new Date(start);
-    paidUntil.setDate(paidUntil.getDate() + 30);
-
-    const { error } = await supabase
-      .from("center_panels")
-      .update({ status: "active", paid_until: paidUntil.toISOString() })
-      .eq("id", saleId);
+  /**
+   * Tasdiqlash — approve_panel(p_sale_id, p_days) RPC.
+   * Bazada:
+   *  • status = 'active', paid_until = eski muddatdan +30 kun
+   *  • panel_events ga 'activated'/'upgraded' yoziladi va OCHILGAN
+   *    vositalar farqi (added_tools) payloadga qo'yiladi —
+   *    markaz egasi "Nimalar ochildi" oynasini ko'radi.
+   */
+  async function approve(saleId, days = 30) {
+    const { data, error } = await supabase.rpc("approve_panel", {
+      p_sale_id: saleId,
+      p_days: days,
+    });
     if (error) throw error;
     items.value = items.value.filter((x) => x.id !== saleId);
+    return data;
   }
 
+  /** Rad etish — reject_panel(p_sale_id) RPC (chek yaroqsiz + tarix) */
   async function reject(saleId) {
-    const { error } = await supabase
-      .from("center_panels")
-      .update({ status: "expired", receipt_url: null })
-      .eq("id", saleId);
+    const { error } = await supabase.rpc("reject_panel", {
+      p_sale_id: saleId,
+    });
     if (error) throw error;
     items.value = items.value.filter((x) => x.id !== saleId);
   }
